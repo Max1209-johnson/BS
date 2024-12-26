@@ -5,114 +5,118 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.options import Options
 
-def download_image(img_url, file_name):
+def save_image(image_url, image_path):
     try:
-        response = requests.get(img_url)
+        response = requests.get(image_url)
         if response.status_code == 200:
-            with open(file_name, 'wb') as file:
-                file.write(response.content)
-            print(f"Image saved as {file_name}")
+            with open(image_path, 'wb') as image_file:
+                image_file.write(response.content)
+            print(f"Image saved to {image_path}")
         else:
-            print(f"Failed to download image from {img_url}")
-    except Exception as e:
-        print(f"Error downloading image: {e}")
-
-# Setup Chrome options
-options = ChromeOptions()
-driver = webdriver.Chrome(options=options)
-
-try:
-    # Navigate to the website
-    driver.get('https://elpais.com/')
-
-    # Check the page language
-    page_language = driver.find_element(By.TAG_NAME, "html").get_attribute("lang")
-    if page_language != 'es-ES':
-        print("The page is not in Spanish.")
-    print(f"The language of the page is: {page_language}")
-
-    # Accept cookies if the notice appears
-    WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.ID, 'didomi-notice-agree-button'))
-    ).click()
-
-    # Locate the opinion section
-    opinion_element = WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.XPATH, '/html/body/main/div[1]/section[2]/div/div'))
-    )
-
-    # Get the first 6 articles
-    articles = opinion_element.find_elements(By.TAG_NAME, "article")[:6]
-    article_headers = []
-
-    for i, article in enumerate(articles):
-        try:
-            # Get the article link text
-            a_element = article.find_element(By.XPATH, ".//h2/a")
-            link_text = a_element.text
-            print(f"Article {i + 1} Link Text: {link_text}")
-            article_headers.append(link_text)
-
-            # Attempt to find an image
-            img_element = None
-            try:
-                img_element = article.find_element(By.TAG_NAME, "img")
-            except NoSuchElementException:
-                try:
-                    img_element = article.find_element(By.XPATH, ".//figure//img")
-                except NoSuchElementException:
-                    print(f"No image found for article {i + 1}")
-
-            # Download the image if found
-            if img_element:
-                img_url = img_element.get_attribute("src")
-                img_file_name = f"article_{i + 1}_image.jpg"
-                download_image(img_url, img_file_name)
-
-        except NoSuchElementException as e:
-            print(f"Error processing article {i + 1}: {e}")
-
-    # Translation API setup
-    api_url = "https://rapid-translate-multi-traduction.p.rapidapi.com/t"
+            print(f"Failed to download image from {image_url}")
+    except Exception as error:
+        print(f"Error saving image: {error}")
+        def translate_with_rapidapi(text_to_translate, api_key):url = "https://rapid-translate-multi-traduction.p.rapidapi.com/t"
     headers = {
-        "x-rapidapi-key": "add-your-key-here",
+        "x-rapidapi-key": "api_key",
+        "x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "from": "es",
+        "to": "en",
+        "q": "text_to_translate"
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()[0]
+def initialize_browser():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    return webdriver.Chrome(options=chrome_options)
+def get_page_language(browser):
+    return browser.find_element(By.TAG_NAME, "html").get_attribute("lang")
+
+def translate_headers(headers, api_url, api_key):
+    headers_count = {}
+    api_headers = {
+        "x-rapidapi-key": api_key,
         "x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
         "Content-Type": "application/json"
     }
 
-    word_count = {}
-
-    # Translate each header and count word frequency
-    for header in article_headers:
+    for header in headers:
         payload = {
             "from": "es",
             "to": "en",
             "q": header
         }
-
         try:
-            response = requests.post(api_url, json=payload, headers=headers)
+            response = requests.post(api_url, json=payload, headers=api_headers)
             response.raise_for_status()
-            eng_header = response.json()[0]
-            print(f"Translation of '{header}': {eng_header}")
-
-            words = eng_header.split(' ')
-            for word in words:
+            translated_text = response.json()[0]
+            print(f"Translated: '{header}' -> '{translated_text}'")
+            for word in translated_text.split():
                 word_lower = word.lower()
-                word_count[word_lower] = word_count.get(word_lower, 0) + 1
-
+                headers_count[word_lower] = headers_count.get(word_lower, 0) + 1
         except Exception as e:
             print(f"Error translating header '{header}': {e}")
+    return headers_count
+def translate_headers(headers, api_url, api_key):
+    headers_count = {}
+    api_headers = {
+        "x-rapidapi-key": api_key,
+        "x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
+        "Content-Type": "application/json"
+    }
 
-    # Print words repeated 2 or more times
-    for word, count in word_count.items():
-        if count >= 2:
-            print(f"The word '{word}' is repeated {count} times")
+    for header in headers:
+        payload = {
+            "from": "es",
+            "to": "en",
+            "q": header
+        }
+        try:
+            response = requests.post(api_url, json=payload, headers=api_headers)
+            response.raise_for_status()
+            translated_text = response.json()[0]
+            print(f"Translated: '{header}' -> '{translated_text}'")
+            for word in translated_text.split():
+                word_lower = word.lower()
+                headers_count[word_lower] = headers_count.get(word_lower, 0) + 1
+        except Exception as e:
+            print(f"Error translating header '{header}': {e}")
+    return headers_count
 
-except Exception as e:
-    print(f"An error occurred: {e}")
+def display_repeated_words(word_counts, min_count=2):
+    for word, count in word_counts.items():
+        if count >= min_count:
+            print(f"The word '{word}' is repeated {count} times.")
 
-finally:
-    driver.quit()
+def main():
+    browser = initialize_browser()
+    try:
+        browser.get('https://elpais.com/')
+        lang = get_page_language(browser)
+        print(f"Website language: {lang}")
+        if lang != 'es-ES':
+            print("Website is not in Spanish.")
+        handle_cookies(browser)
+        articles = scrape_opinion_section(browser)
+        headers = fetch_article_data(articles)
+
+        translation_api_url = "https://rapid-translate-multi-traduction.p.rapidapi.com/t"
+        api_key = "your-rapidapi-key"
+
+        word_counts = translate_headers(headers, translation_api_url, api_key)
+        display_repeated_words(word_counts)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        browser.quit()
+
+if __name__ == "__main__":
+    main()
