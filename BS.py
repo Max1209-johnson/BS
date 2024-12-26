@@ -43,10 +43,12 @@ def get_page_language(browser):
 def translate_headers(headers, api_url, api_key):
     headers_count = {}
     api_headers = {
-        "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
-        "Content-Type": "application/json"
-    }
+        "x-rapidapi-key": "31d241f829mshe00f667c8856846p1b4b5bjsne99e18e8c7f9",
+	"x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
+	"Content-Type": "application/json"
+}
+
+
 
     for header in headers:
         payload = {
