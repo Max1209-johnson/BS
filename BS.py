@@ -1,124 +1,135 @@
-import json
-import requests
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.chrome.options import Options
+from collections import Counter 
+import requests
+import time
+import re 
+import os 
 
-def save_image(image_url, image_path):
-    try:
-        response = requests.get(image_url)
-        if response.status_code == 200:
-            with open(image_path, 'wb') as image_file:
-                image_file.write(response.content)
-            print(f"Image saved to {image_path}")
-        else:
-            print(f"Failed to download image from {image_url}")
-    except Exception as error:
-        print(f"Error saving image: {error}")
-        def translate_with_rapidapi(text_to_translate, api_key):url = "https://rapid-translate-multi-traduction.p.rapidapi.com/t"
-    headers = {
-        "x-rapidapi-key": "api_key",
-        "x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "from": "es",
-        "to": "en",
-        "q": "text_to_translate"
-    }
-    response = requests.post(url, json=payload, headers=headers)
-    return response.json()[0]
-def initialize_browser():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    return webdriver.Chrome(options=chrome_options)
-def get_page_language(browser):
-    return browser.find_element(By.TAG_NAME, "html").get_attribute("lang")
+driver = webdriver.Chrome()
+wait = WebDriverWait(driver, 10)
 
-def translate_headers(headers, api_url, api_key):
-    headers_count = {}
-    api_headers = {
-        "x-rapidapi-key": "31d241f829mshe00f667c8856846p1b4b5bjsne99e18e8c7f9",
-	"x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
-	"Content-Type": "application/json"
+url = "https://rapid-translate-multi-traduction.p.rapidapi.com/t"
+headers = {
+    "x-rapidapi-key": "31d241f829mshe00f667c8856846p1b4b5bjsne99e18e8c7f9",
+    "x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
+    "Content-Type": "application/json"
 }
 
-
-
-    for header in headers:
-        payload = {
-            "from": "es",
-            "to": "en",
-            "q": header
-        }
-        try:
-            response = requests.post(api_url, json=payload, headers=api_headers)
-            response.raise_for_status()
-            translated_text = response.json()[0]
-            print(f"Translated: '{header}' -> '{translated_text}'")
-            for word in translated_text.split():
-                word_lower = word.lower()
-                headers_count[word_lower] = headers_count.get(word_lower, 0) + 1
-        except Exception as e:
-            print(f"Error translating header '{header}': {e}")
-    return headers_count
-def translate_headers(headers, api_url, api_key):
-    headers_count = {}
-    api_headers = {
-        "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "rapid-translate-multi-traduction.p.rapidapi.com",
-        "Content-Type": "application/json"
-    }
-
-    for header in headers:
-        payload = {
-            "from": "es",
-            "to": "en",
-            "q": header
-        }
-        try:
-            response = requests.post(api_url, json=payload, headers=api_headers)
-            response.raise_for_status()
-            translated_text = response.json()[0]
-            print(f"Translated: '{header}' -> '{translated_text}'")
-            for word in translated_text.split():
-                word_lower = word.lower()
-                headers_count[word_lower] = headers_count.get(word_lower, 0) + 1
-        except Exception as e:
-            print(f"Error translating header '{header}': {e}")
-    return headers_count
-
-def display_repeated_words(word_counts, min_count=2):
-    for word, count in word_counts.items():
-        if count >= min_count:
-            print(f"The word '{word}' is repeated {count} times.")
-
-def main():
-    browser = initialize_browser()
+def save_image(url, save_folder='images'):
     try:
-        browser.get('https://elpais.com/')
-        lang = get_page_language(browser)
-        print(f"Website language: {lang}")
-        if lang != 'es-ES':
-            print("Website is not in Spanish.")
-        handle_cookies(browser)
-        articles = scrape_opinion_section(browser)
-        headers = fetch_article_data(articles)
-
-        translation_api_url = "https://rapid-translate-multi-traduction.p.rapidapi.com/t"
-        api_key = "your-rapidapi-key"
-
-        word_counts = translate_headers(headers, translation_api_url, api_key)
-        display_repeated_words(word_counts)
+        response = requests.get(url)
+        if response.status_code == 200:
+            if not os.path.exists(save_folder):
+                os.makedirs(save_folder)
+            
+            image_name = os.path.join(save_folder, url.split('/')[-1].split('?')[0])
+            with open(image_name, 'wb') as f:
+                f.write(response.content)
+            print(f"Image saved as {image_name}")
+        else:
+            print(f"Failed to retrieve the image from {url} (Status code: {response.status_code})")
+    
     except Exception as e:
-        print(f"Unexpected error: {e}")
-    finally:
-        browser.quit()
+        print(f"Error saving images: {e}")
 
-if __name__ == "__main__":
-    main()
+def translate_text(text, from_lang="es", to_lang="en"):
+    payload = {"from": from_lang, "to": to_lang, "q": text}
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        translation = response.json()
+        return translation[0]
+    else:
+        print(f"Error during translation: {response.status_code}")
+        return None
+    
+def image_url(src):
+    image_sources = src.split(',')
+    sorted_sources = sorted(image_sources, key=lambda x: int(x.split()[-1][:-1]), reverse=True)
+    return sorted_sources[0].split()[0]
+
+# Function to clean and tokenize text
+def clean_and_tokenize(text):
+    text = text.lower()
+    text = re.sub(r'[^a-z\s]', '', text)
+    words = text.split()  # Now returns the list of words
+    return words
+
+try:
+    driver.maximize_window()
+   
+
+    driver.get("https://elpais.com/")
+    time.sleep(5)
+
+    lang_attr = driver.find_element(By.TAG_NAME, 'html').get_attribute('lang')
+    if 'es' in lang_attr:
+        print('Language is Spanish')
+    else:
+        print(f'Language is {lang_attr}')
+
+
+    accept_button = wait.until(EC.element_to_be_clickable((By.ID, 'didomi-notice-agree-button')))
+    accept_button.click()
+
+    opinion_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[@data-mrf-link="https://elpais.com/opinion/"]')))
+    opinion_button.click()
+
+    time.sleep(5)
+
+    opinion_section = wait.until(EC.visibility_of_element_located((By.XPATH, '//section[@data-dtm-region="portada_apertura"]')))
+    articles = opinion_section.find_elements(By.TAG_NAME, 'article')[:5]
+    
+    tc_dict = {}
+    img_scr_list = []
+
+
+    for article in articles:
+        title = article.find_element(By.XPATH, './/h2').text
+        content = article.find_element(By.XPATH, './/p').text
+        tc_dict[title] = content
+
+        try:
+            img_scr = article.find_element(By.TAG_NAME, 'img').get_attribute('srcset')
+            if img_scr:
+                img_scr_list.append(image_url(img_scr))
+        except Exception as e:
+            print(f"No image found in this article or error occurred: {title}")
+
+    print(f"Article Titles and Contents: {tc_dict}")
+    print(f"Image URLs: {len(img_scr_list)}")
+
+    # Translate article titles
+    translated_titles = []
+    for title in tc_dict.keys():
+        translated_title = translate_text(title)
+        if translated_title:
+            translated_titles.append(translated_title)
+        else:
+            print(f"Failed to translate title: {title}")
+
+    print(f"Translated Titles: {translated_titles}")
+
+    # Tokenize and count word occurrences in translated titles
+    all_words = []
+    for title in translated_titles:
+        words = clean_and_tokenize(title)
+        all_words.extend(words)
+
+    word_counts = Counter(all_words)
+    repeated_words = {word: count for word, count in word_counts.items() if count >= 2}
+
+    print("Repeated words (Appearing more than twice):")
+    for word, count in repeated_words.items():
+        print(f"{word}: {count}")
+
+    # Download images
+    for url in img_scr_list:
+        save_image(url)
+
+finally:
+    # Close the browser
+    driver.quit()
