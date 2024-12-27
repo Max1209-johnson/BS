@@ -1,0 +1,22 @@
+userName: maxjohnsonmaripp_KYvjgb
+accessKey: fmuTjtFqi9G4HoGFW944
+platforms:
+  - os: Windows
+    osVersion: 10
+    browserName: Chrome
+    browserVersion: 120.0
+  - os: OS X
+    osVersion: Monterey
+    browserName: Safari
+    browserVersion: 15.6
+  - os: Windows
+    osVersion: 11
+    browserName: Chrome
+    browserVersion: latest
+browserstackLocal: false
+buildName: bstack-demo
+buildIdentifier: ${BUILD_NUMBER}
+projectName: BrowserStack Sample
+debug: true
+networkLogs: true
+consoleLogs: info
